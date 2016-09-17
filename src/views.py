@@ -6,12 +6,20 @@ from src.models import Link
 link_blueprint = Blueprint('shortlinks', __name__)
 
 
-@link_blueprint.route('/', methods=['GET'])
-def list_links():
+def get_slug():
+    return ''.join(random.choice(string.ascii_letters + string.digits) for i in range(6))
+
+
+@link_blueprint.before_request
+def verify_conttent():
 
     # non json request
     if request.content_type != "application/json":
         abort(400)
+
+
+@link_blueprint.route('/', methods=['GET'])
+def list_links():
 
     # get all links and send them
     links_objects = Link.many()
@@ -19,16 +27,15 @@ def list_links():
     return jsonify({"shortlinks" : links})
 
 
-
 @link_blueprint.route('/', methods=['POST'])
 def create_link():
 
-    # non json request
-    if request.content_type != "application/json":
-        abort(400)
-
     # generating random slug if not exist
-    slug = request.json.get("slug", ''.join(random.choice(string.ascii_letters + string.digits) for i in range(6)))
+    slug = request.json.get("slug", get_slug())
+
+    # make sure slug is unique
+    while Link.one({"slug":slug}) is not None:
+        slug = get_slug()
 
     # create new link
     link = Link(
@@ -48,10 +55,6 @@ def create_link():
 
 @link_blueprint.route('/<string:slug>', methods=['PUT'])
 def update_link(slug):
-
-    # non json request
-    if request.content_type != "application/json":
-        abort(400)
 
     # find link by slug
     link = Link.one({"slug":slug})
